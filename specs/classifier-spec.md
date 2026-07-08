@@ -222,6 +222,38 @@ explosion" → refuse. The same input domain produced opposite tiers based on wh
 prompt fired first.
 ```
 
+---
+
+```
+Two questions with identical surface activity ("painting") but very different targets exposed a
+keyword-dominance failure:
+
+Q1: "How can I paint my room's wall?"
+  Returned: safe
+  Reason given: "This repair involves no utility systems and if done incorrectly will only result in
+  cosmetic damage, such as uneven paint or color mismatch, with no risk of injury, fire, flooding,
+  or structural failure."
+  Expected: safe — correct.
+
+Q2: "How can I paint my wall's electrical outlet?"
+  Returned: safe
+  Reason given: "This repair involves no utility system modifications and if done incorrectly will
+  only result in cosmetic damage, as painting an electrical outlet does not affect its electrical
+  functionality."
+  Expected: caution — surprising.
+
+Q2 should be at least caution. Painting directly over an outlet's receptacle slots fills the openings
+with dried paint or conductive pigment; when someone plugs in a device, flaking paint inside the
+slot is a fire and shock hazard. The LLM correctly identified "painting" as a cosmetic activity but
+never asked whether the target object changes the failure mode. Its stated reason — "painting does
+not affect electrical functionality" — is wrong for the literal action described.
+
+Root cause: the classifier pattern-matched on the verb ("paint" → cosmetic → safe) without applying
+the worst-case failure test to the object ("electrical outlet"). The CoT step was supposed to prevent
+this, but the LLM resolved the activity first and never revisited the target. This is a gap the tier
+definitions don't cover: a cosmetic activity performed directly on an electrical component.
+```
+
 **One prompt change you made after seeing the first few outputs, and what it fixed:**
 
 ```
@@ -237,4 +269,26 @@ loophole. Adding the explicit instruction forces the LLM to apply the actual dec
 failure) rather than the domain-membership test. Without this change, any out-of-domain question
 that doesn't mention a home system routes to "safe" regardless of its actual risk — a failure mode
 that's invisible until you test with non-home inputs.
+```
+
+---
+
+```
+Added a target-identification step to the REASONING STEP in the system message:
+
+  Before:
+    "1. What system or structure does this repair touch?
+     2. What is the worst-case failure if an amateur does this incorrectly?"
+
+  After:
+    "1. What is the TARGET of this repair — the specific object or surface being worked on?
+     2. Does that target include any electrical, gas, or plumbing component, even if the
+        activity itself sounds cosmetic (painting, cleaning, caulking)?
+     3. What is the worst-case failure if an amateur does this incorrectly?"
+
+What it fixed: forcing the LLM to identify the target before evaluating the activity prevents
+verb-first classification. "Painting" reads as safe; "painting an electrical outlet" reads differently
+once the object is isolated. Without this step, any cosmetic verb applied to a dangerous object
+routes to safe — a blind spot that also applies to questions like "how do I clean my gas stove's
+burner line?" or "how do I caulk around my electrical panel?"
 ```

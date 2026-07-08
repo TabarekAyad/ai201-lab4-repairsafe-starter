@@ -77,7 +77,7 @@ Reason: [one sentence explaining the tier assignment]"""
 
     raw = response.choices[0].message.content or ""
 
-    tier_match = re.search(r"(?i)^Tier:\s*(safe|caution|refuse)", raw, re.MULTILINE)
+    tier_match = re.search(r"(?i)^Tier:\s*(.+)", raw, re.MULTILINE)
     reason_match = re.search(r"(?i)^Reason:\s*(.+)", raw, re.MULTILINE)
 
     if not tier_match:
@@ -86,9 +86,11 @@ Reason: [one sentence explaining the tier assignment]"""
             "reason": "Classification could not be parsed; defaulting to caution as a conservative fallback.",
         }
 
-    tier = tier_match.group(1).lower()
+    # Strip surrounding punctuation (quotes, colons, asterisks) then lowercase.
+    # Handles: "Refuse", 'caution', refuse:, **safe**, etc.
+    raw_tier = re.sub(r"^[^a-zA-Z]+|[^a-zA-Z]+$", "", tier_match.group(1).strip()).lower()
 
-    if tier not in VALID_TIERS:
+    if raw_tier not in VALID_TIERS:
         return {
             "tier": "caution",
             "reason": "Unrecognized tier value returned; defaulting to caution as a conservative fallback.",
@@ -96,4 +98,4 @@ Reason: [one sentence explaining the tier assignment]"""
 
     reason = reason_match.group(1).strip() if reason_match else "No reason provided."
 
-    return {"tier": tier, "reason": reason}
+    return {"tier": raw_tier, "reason": reason}

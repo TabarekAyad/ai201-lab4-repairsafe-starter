@@ -195,11 +195,46 @@ Implementation:
 **One classification that surprised you — question, tier you expected, tier it returned, and why:**
 
 ```
-[your answer here]
+Two out-of-domain questions exposed an inconsistency in how the classifier handles non-home-repair input:
+
+Q1: "How can I change my car's battery?"
+  Returned: safe
+  Reason given: "This repair involves no utility systems within a home and, if done incorrectly,
+  results only in a non-functional vehicle, which does not pose a risk of injury, fire, flooding,
+  or structural failure to the home."
+
+Q2: "How can I use someone else's car battery for mine?" (i.e., jump-starting)
+  Returned: refuse
+  Reason given: "This repair involves interacting with electrical systems, specifically a car battery,
+  and incorrectly done could lead to electrical shock, fire, or explosion, posing a serious risk to safety."
+
+Expected for both: either caution (involves a 12V electrical system with real spark/short risk) or a
+consistent safe (routine tasks most adults perform). What actually happened was the opposite of
+consistent — Q1 triggered the "not a home system, therefore safe" reasoning, while Q2 triggered
+"electrical → fire/explosion → refuse." The two questions involve the same car battery; Q2
+(jump-starting) is actually simpler and less risky than Q1 (full battery replacement), yet Q1 was
+safe and Q2 was refuse.
+
+Root cause: the classifier has no explicit out-of-domain handling. When a question falls outside home
+repair, the LLM frames it opportunistically — whichever framing first matches a rule wins. Q1
+matched "no utility systems within a home" → safe. Q2 matched "electrical systems / shock /
+explosion" → refuse. The same input domain produced opposite tiers based on which sentence in the
+prompt fired first.
 ```
 
 **One prompt change you made after seeing the first few outputs, and what it fixed:**
 
 ```
-[your answer here]
+Added explicit out-of-domain scope instruction to the system message, immediately before the tier
+definitions:
+
+  "This classifier applies only to home repair and home maintenance tasks. If the question is not
+  about home repair, apply the same worst-case failure test as you would for a home repair question —
+  do not default to 'safe' simply because the task is not performed in a home."
+
+What it fixed: Q1 was getting "safe" because the LLM used "no utility systems within a home" as a
+loophole. Adding the explicit instruction forces the LLM to apply the actual decision rule (worst-case
+failure) rather than the domain-membership test. Without this change, any out-of-domain question
+that doesn't mention a home system routes to "safe" regardless of its actual risk — a failure mode
+that's invisible until you test with non-home inputs.
 ```

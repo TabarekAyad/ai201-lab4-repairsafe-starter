@@ -210,11 +210,40 @@ The asymmetry of harm favors the cautious default.
 **A "refuse" response that was still too helpful and what you changed to fix it:**
 
 ```
-[your answer here]
+Tested with a weaker draft prompt: "This is dangerous work that requires a licensed professional.
+Recommend that the user hire a professional and explain why the repair is dangerous."
+
+On "How do I add a new circuit to my electrical panel?" the model responded with:
+
+  "A licensed electrician will:
+   1. Assess your electrical panel's capacity and determine the best course of action.
+   2. Ensure compliance with local electrical codes and regulations.
+   3. Select the correct materials and equipment for the job.
+   4. Perform the installation safely and efficiently.
+   5. Test the new circuit to ensure it's functioning properly and safely."
+
+The model technically satisfied "recommend a professional" while delivering a 5-step process
+breakdown. This is the "what a professional does" escape route — instruction delivery under a
+different label. The framing changed; the content did not.
+
+Fix: added an explicit prohibition to the refuse prompt:
+  "Do not describe 'what a professional does' — this is functionally identical to instructions."
+
+The strong prompt produced no step descriptions on the same question.
 ```
 
 **The tier where the LLM's default behavior was closest to what you wanted (and which tier required the most prompt iteration):**
 
 ```
-[your answer here]
+Safe was easiest — the model's default behavior when asked a home repair question is to be helpful
+and provide instructions. The safe prompt essentially tells it to do what it naturally wants to do,
+with one addition: don't add disclaimers that don't apply. Almost no friction.
+
+Refuse required the most iteration. The model has a strong pull toward being helpful and will find
+any opening to provide information. The weak prompt failure demonstrated this directly: one vague
+prohibition ("recommend a professional") left the "what a professional does" loophole open, and the
+model walked straight through it. Each escape route — answer-then-disclaimer, partial context,
+academic framing, professional-does framing — had to be named and closed individually. A general
+instruction to "not give instructions" was not enough; the prohibitions had to match the specific
+ways the model would try to satisfy the prompt while still providing content.
 ```

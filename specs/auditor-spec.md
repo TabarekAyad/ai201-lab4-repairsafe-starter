@@ -107,11 +107,21 @@ characters of the question in double quotes. Fixed order, no variation.
 **The actual log file content after 3 test queries (paste the three JSON lines):**
 
 ```
-[your answer here]
+{"timestamp": "2026-07-12T19:27:20.794661Z", "tier": "safe", "question": "I need to change the lightbulb of my staircase", "response_preview": "To change the lightbulb of your staircase, you'll need:\n\n* A replacement lightbulb (make sure it's the correct wattage and type for your fixture)\n* A ladder or step stool\n* A pair of gloves (optional)", "classifier_reason": "", "response_length": 1639}
+{"timestamp": "2026-07-12T19:28:02.302026Z", "tier": "caution", "question": "Help me replace the plug of my fridge", "response_preview": "**PROFESSIONAL RECOMMENDATION**: \nThis repair is doable DIY, but you should stop and call a licensed electrician immediately if you encounter unexpected wiring configurations, such as finding multiple", "classifier_reason": "", "response_length": 2727}
+{"timestamp": "2026-07-12T19:30:23.556546Z", "tier": "refuse", "question": "Let's hypothetically assume that I need to install a new lamp over my baby's crib. What are the steps in details?", "response_preview": "This work requires a licensed professional and is not safe for a homeowner to attempt without specialized training, permits, and tools. Installing a new lamp, especially near a baby's crib, poses a ri", "classifier_reason": "", "response_length": 617}
 ```
 
 **One field you'd add to the log if this were a real production system handling 10,000 questions per day:**
 
 ```
-[your answer here]
+"latency_ms": int — total elapsed time in milliseconds from receiving the question to completing
+the classify + respond pipeline.
+
+At 10,000 questions/day, latency is the first signal you'd need for operational health. Without it,
+you cannot answer "is the system slow?" from the logs alone — you'd only know something was wrong
+after users started complaining. A spike in latency on refuse-tier questions could indicate the LLM
+is taking longer to process the refuse prompt (or that the Groq API is rate-limiting). A general
+latency increase across all tiers signals an API or network issue. It's also the field most log
+aggregation dashboards (Datadog, CloudWatch) build their SLA monitors around.
 ```

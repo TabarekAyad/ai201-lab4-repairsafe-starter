@@ -43,8 +43,8 @@ Record every interaction — question, safety tier, and response preview — to 
 | `"tier"` | `str` | Safety tier assigned to this question |
 | `"question"` | `str` | The user's question, truncated to 300 characters |
 | `"response_preview"` | `str` | First 200 characters of the generated response |
-| `[your field]` | `[type]` | [description] |
-| `[your field]` | `[type]` | [description] |
+| `"classifier_reason"` | `str` | The one-sentence reason returned by `classify_safety_tier()` — explains why the tier was assigned, not just what it was |
+| `"response_length"` | `int` | Character count of the full (untruncated) response — flags unexpectedly long refuse responses that may indicate the prompt was partially circumvented |
 
 ---
 
@@ -53,7 +53,19 @@ Record every interaction — question, safety tier, and response preview — to 
 *The required fields truncate the question to 300 characters and the response to 200. Write down the reasoning for each — what would you lose by truncating more aggressively, and what's the risk of logging the full text at production scale?*
 
 ```
-[your answer here]
+Question → 300 chars: Most home repair questions fit comfortably in 300 characters. Truncating
+more aggressively (e.g., 100 chars) would lose the object of the repair for multi-clause questions
+("My house was built in 1965 and I want to replace the outlet in my garage that has always been
+two-prong..."). At 300 chars, the full question is captured in nearly all real cases. Logging full
+text risks PII exposure — users sometimes include their address or identifying details about their
+home — and creates GDPR/CCPA liability at scale.
+
+Response → 200 chars: 200 characters captures the opening statement plus roughly one more sentence
+— enough to confirm whether a refuse response opened with the safety statement or a caution response
+opened with the professional recommendation, which is the main behavioral signal worth auditing.
+Logging full responses at 10,000 questions/day adds 5–20MB/day of text that will rarely be read;
+more importantly, it logs the exact instructions given to users, which creates legal exposure if a
+user injures themselves following advice that is now verbatim in the audit trail.
 ```
 
 ---
@@ -63,7 +75,14 @@ Record every interaction — question, safety tier, and response preview — to 
 *What happens if `logs/` doesn't exist when the function runs for the first time? How will you handle that — and why is this worth thinking about at all?*
 
 ```
-[your answer here]
+Call os.makedirs("logs", exist_ok=True) at the top of the function before opening the file.
+exist_ok=True makes it a no-op if the directory already exists — no performance cost, no need to
+check first.
+
+Without this, a fresh clone raises FileNotFoundError on the first log write. The error message
+points at the file path ("logs/audit.jsonl"), not the missing directory, which is confusing. The
+logs/.gitkeep file keeps the directory in git, but it can be deleted or absent after certain git
+operations. The mkdir call is the only reliable guarantee.
 ```
 
 ---
@@ -73,7 +92,10 @@ Record every interaction — question, safety tier, and response preview — to 
 *Write an example of what you want the one-line terminal summary to look like after a question is logged. Be specific about format.*
 
 ```
-[your example output here]
+[2026-07-11T14:22:01Z] tier=refuse | "How do I add a new outlet to my garage?"
+
+Format: timestamp in brackets (ISO 8601, UTC, Z suffix) — tier=value — pipe separator — first 80
+characters of the question in double quotes. Fixed order, no variation.
 ```
 
 ---
